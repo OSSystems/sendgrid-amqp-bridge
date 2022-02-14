@@ -18,11 +18,11 @@ pub trait MessageHandler: Clone + Send {
     fn handle(self, message: &Delivery, logger: &slog::Logger) -> bool;
 }
 
-pub(crate) struct AMQP {
-    config: config::AMQP,
+pub(crate) struct Amqp {
+    config: config::Amqp,
 }
 
-impl AMQP {
+impl Amqp {
     pub(crate) fn from_config(config: &config::Config) -> Self {
         Self {
             config: config.amqp.clone(),
@@ -37,7 +37,7 @@ impl AMQP {
     where
         F: MessageHandler + 'static,
     {
-        let config::AMQP {
+        let config::Amqp {
             dsn,
             queue_name,
             exchange_name,
@@ -115,7 +115,7 @@ where
 
     channel
         .queue_bind(
-            &queue.name().as_str(),
+            queue.name().as_str(),
             &exchange_name,
             &routing_key,
             QueueBindOptions::default(),
@@ -127,7 +127,7 @@ where
     trace!(logger, "creating consumer");
     let stream = channel
         .basic_consume(
-            &queue.name().as_str(),
+            queue.name().as_str(),
             &consumer_name,
             BasicConsumeOptions::default(),
             FieldTable::default(),

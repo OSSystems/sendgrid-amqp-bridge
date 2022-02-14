@@ -9,12 +9,12 @@ use std::{collections::BTreeMap, fs::File, io::Read, path::Path};
 
 #[derive(Deserialize)]
 pub(crate) struct Config {
-    pub(crate) amqp: AMQP,
+    pub(crate) amqp: Amqp,
     pub(crate) sendgrid: SendGrid,
 }
 
 #[derive(Deserialize, Clone)]
-pub(crate) struct AMQP {
+pub(crate) struct Amqp {
     pub(crate) dsn: String,
     pub(crate) exchange_name: String,
     pub(crate) routing_key: String,
@@ -57,7 +57,7 @@ impl SendGrid {
         Ok(self.email_templates[template]
             .required_fields
             .clone()
-            .unwrap_or_else(|| vec![]))
+            .unwrap_or_default())
     }
 
     pub(crate) fn template_id(&self, template: &str) -> Result<String, anyhow::Error> {
@@ -82,6 +82,6 @@ impl Config {
             .read_to_string(&mut buf)
             .context("reading configuration file")?;
 
-        Ok(serde_yaml::from_str(&buf).context("parsing the YAML configuration")?)
+        serde_yaml::from_str(&buf).context("parsing the YAML configuration")
     }
 }

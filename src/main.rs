@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-use crate::{amqp::AMQP, config::Config, sendgrid::SendGrid};
+use crate::{amqp::Amqp, config::Config, sendgrid::SendGrid};
 use clap::Parser;
 use slog::info;
 use std::path::PathBuf;
@@ -40,7 +40,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     info!(logger, "starting"; "version" => build_info::version());
     let config = Config::load(&cli.config, &logger)?;
-    let amqp = AMQP::from_config(&config);
+    let amqp = Amqp::from_config(&config);
     let sendgrid = SendGrid::from_config(&config);
 
     amqp.create_consumers(sendgrid, logger).await?;
