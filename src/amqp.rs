@@ -33,7 +33,7 @@ impl Amqp {
         self,
         message_handler: F,
         logger: slog::Logger,
-    ) -> Result<Connection, lapin::Error>
+    ) -> anyhow::Result<()>
     where
         F: MessageHandler + 'static,
     {
@@ -52,23 +52,23 @@ impl Amqp {
 
         let conn = Connection::connect(&dsn, ConnectionProperties::default()).await?;
         let channel = conn.create_channel().await?;
-        tokio::spawn(async move {
-            if let Err(err) = create_consumer(
-                channel,
-                queue_name,
-                exchange_name,
-                routing_key,
-                consumer_name,
-                message_handler,
-                logger.clone(),
-            )
-            .await
-            {
-                error!(logger, "got error in consumer: {}", err);
-            }
-        });
+        match create_consumer(
+            channel,
+            queue_name,
+            exchange_name,
+            routing_key,
+            consumer_name,
+            message_handler,
+            logger.clone(),
+        )
+        .await
+        {
+            Ok(()) => error!(logger, "consumer stopped"),
+            Err(err) => error!(logger, "got error in consumer: {}", err),
+        }
 
-        Ok(conn)
+        // lapin never reconnects, so exit and let the supervisor restart the bridge.
+        Err(anyhow::anyhow!("AMQP consumer stopped"))
     }
 }
 
@@ -135,8 +135,12 @@ where
         .await?;
 
     for message in stream.into_iter() {
-        let (channel, message) = message.expect("error caught in in consumer");
-        if message_handler.clone().handle(&message, &logger) {
+        let (channel, message) = message?;
+        // The SendGrid client blocks and drops its own runtime, which tokio
+        // forbids on an async thread.
+        let handled =
+            tokio::task::block_in_place(|| message_handler.clone().handle(&message, &logger));
+        if handled {
             channel
                 .basic_ack(message.delivery_tag, BasicAckOptions { multiple: false })
                 .await?;

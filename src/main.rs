@@ -43,7 +43,5 @@ async fn main() -> Result<(), anyhow::Error> {
     let amqp = Amqp::from_config(&config);
     let sendgrid = SendGrid::from_config(&config);
 
-    amqp.create_consumers(sendgrid, logger).await?;
-
-    Ok(())
+    amqp.create_consumers(sendgrid, logger).await
 }
